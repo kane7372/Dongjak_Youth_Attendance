@@ -170,7 +170,7 @@ if mode == "admin":
                     col_a, col_b = st.columns(2)
                     with col_a:
                         # 🌟 쿼터 선택지에 '1, 2쿼터 모두 (둘 다)' 추가
-                        m_quarter = st.selectbox("출석 유형", ["미사", "교리", "미사,교리 둘 다"])
+                        m_quarter = st.selectbox("출석 유형", ["미사", "교리", "미사, 교리 둘 다"])
                         m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년","교사"])
                         m_date = st.date_input("출석 날짜 (기본값: 오늘)")
                     with col_b:
@@ -285,6 +285,7 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
 
