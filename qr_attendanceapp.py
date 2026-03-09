@@ -12,7 +12,7 @@ from streamlit_js_eval import streamlit_js_eval
 st.set_page_config(page_title="스마트 QR 출석 시스템", layout="wide")
 
 # ⚠️ [매우 중요] 설정 변수 (본인에게 맞게 수정하세요!)
-base_url = "https://dongjakyouthattendance.streamlit.app"  # 본인의 Streamlit 앱 주소
+base_url = "https://dongjakyouthattendance-d57rqgsqjtumzwaftmyp3p.streamlit.app"  # 본인의 Streamlit 앱 주소
 ADMIN_PASSWORD = "1234"                     # 출결 현황을 보기 위한 관리자 비밀번호
 
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -162,3 +162,4 @@ else:
                         st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
