@@ -10,6 +10,7 @@ from supabase import create_client, Client
 
 # --- 초기 설정 ---
 st.set_page_config(page_title="스마트 QR 출석 시스템", layout="wide")
+KST = datetime.timezone(datetime.timedelta(hours=9))
 
 # ⚠️ [매우 중요] 설정 변수
 base_url = "https://dongjakyouthattendance-d57rqgsqjtumzwaftmyp3p.streamlit.app/"  # 본인의 Streamlit 앱 주소
@@ -141,7 +142,7 @@ if mode == "admin":
                         
                     with tab2:
                         st.markdown("#### 🔎 특정 날짜 출석 확인")
-                        selected_date = st.date_input("조회할 날짜를 선택하세요.")
+                        selected_date = st.date_input("조회할 날짜를 선택하세요.", value=datetime.datetime.now(KST).date())
                         selected_date_str = selected_date.isoformat()
                         
                         filtered_df = df[df['date'] == selected_date_str]
@@ -172,7 +173,8 @@ if mode == "admin":
                         # 🌟 쿼터 선택지에 '1, 2쿼터 모두 (둘 다)' 추가
                         m_quarter = st.selectbox("출석 유형", ["미사", "교리", "미사, 교리 둘 다"])
                         m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년","교사"])
-                        m_date = st.date_input("출석 날짜 (기본값: 오늘)")
+                        # (1) 달력 부분 변경
+                        m_date = st.date_input("출석 날짜", value=datetime.datetime.now(KST).date())
                     with col_b:
                         m_name = st.text_input("이름")
                         m_nickname = st.text_input("세례명")
@@ -201,7 +203,7 @@ if mode == "admin":
                                         "name": m_name,
                                         "nickname": m_nickname,
                                         "date": m_date.isoformat(),
-                                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        "timestamp": datetime.datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S"),
                                         "fp": "관리자_수동입력"
                                     }).execute()
                                 
@@ -259,7 +261,7 @@ else:
                 st.error("학년, 이름, 세례명을 모두 입력해 주세요.")
             else:
                 try:
-                    today = datetime.date.today().isoformat()
+                    today = datetime.datetime.now(KST).date().isoformat()
                     
                     # 🌟 TABLE_NAME 변수를 사용하여 중복 검사
                     name_check = supabase.table(TABLE_NAME).select("*").eq("name", name).eq("grade", grade).eq("date", today).eq("quarter", st.session_state.current_quarter).execute()
@@ -277,7 +279,7 @@ else:
                             "name": name,
                             "nickname": nickname,
                             "date": today,
-                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "timestamp": datetime.datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S"),
                             "fp": str(fp_id)
                         }).execute()
                         
@@ -285,6 +287,7 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
 
