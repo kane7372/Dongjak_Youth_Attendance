@@ -39,14 +39,18 @@ if mode == "admin":
     
     col1, col2 = st.columns([1, 1.5])
     
-    # [왼쪽] QR 코드는 비밀번호 없이 무조건 보여줌
+# [왼쪽] QR 코드는 비밀번호 없이 무조건 보여줌
     with col1:
         st.subheader("현재 출석 QR")
         token = get_token()
         qr_url = f"{base_url}/?token={token}"
         
+        # 🌟 에러 해결: QR 코드를 PNG 형태의 데이터(BytesIO)로 변환하여 출력합니다.
         qr_img = qrcode.make(qr_url)
-        st.image(qr_img, width=300, caption=f"갱신 토큰: {token} (15초마다 자동 변경)")
+        buf = BytesIO()
+        qr_img.save(buf, format="PNG")
+        
+        st.image(buf, width=300, caption=f"갱신 토큰: {token} (15초마다 자동 변경)")
         
         st.write("접속 주소:")
         st.code(qr_url)
@@ -161,3 +165,4 @@ else:
                         st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
