@@ -13,7 +13,7 @@ from streamlit_js_eval import streamlit_js_eval
 st.set_page_config(page_title="완성형 QR 출석 시스템", layout="wide")
 
 # ⚠️ [매우 중요] 아래 주소를 본인의 실제 Streamlit 앱 주소로 반드시 변경하세요!
-base_url = "https://dongjakyouthattendance.streamlit.app" 
+base_url = "https://abcdefg.streamlit.app" 
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 SECRET_KEY = "attendance_master_key" # QR 토큰용
@@ -95,16 +95,44 @@ if mode == "admin":
             else:
                 # 스위치가 꺼져있을 때 보여줄 안내문
                 st.info("👆 위 스위치를 켜면 실시간 랭킹과 전체 명단을 확인할 수 있습니다.")
-# 🟢 검증을 무사히 통과한 사용자에게만 출석 입력창 표시
+
+# [2. 학생 모드] - 🚨 이 아래 부분이 통째로 누락되어 있었습니다!
+else:
+    st.title("📝 스마트 출석 체크")
+    
+    # 1. 기기 지문 생성 (1인 1기기용)
+    fp_id = streamlit_js_eval(js_expressions="window.screen.width + '-' + navigator.userAgent", key="fp")
+    
+    if not fp_id:
+        st.info("기기 식별 중입니다. 잠시만 기다려주세요...")
+        st.stop()
+
+    url_token = query_params.get("token")
+    
+    # 2. 세션을 이용해 새로고침 시 만료되는 현상 방지
+    if "token_verified" not in st.session_state:
+        st.session_state.token_verified = False
+
+    # 3. 아직 검증 전이라면 토큰 검사
+    if not st.session_state.token_verified:
+        if not url_token:
+            st.error("카메라로 QR 코드를 스캔하여 접속해주세요.")
+            st.stop()
+        elif is_valid_token(url_token):
+            st.session_state.token_verified = True 
+            st.rerun() 
+        else:
+            st.error("❌ 만료된 QR 코드입니다. 화면의 새 QR을 스캔해 주세요.")
+            st.stop()
+
+    # 4. 검증을 무사히 통과한 사용자에게만 출석 입력창 표시
     if st.session_state.token_verified:
         st.success("✅ 유효한 접속입니다. 정보를 입력해주세요.") 
-#[2. 학생 모드]        
-        # 🌟 리스트 선택 대신 '직접 입력'과 '드롭다운'으로 변경
-        grade = st.selectbox("학년을 선택하세요", ["선택", "1학년", "2학년", "3학년", "4학년", "5학년", "6학년"]) # 학교에 맞게 수정하세요!
+        
+        grade = st.selectbox("학년을 선택하세요", ["선택", "1학년", "2학년", "3학년", "4학년", "5학년", "6학년"]) 
         name = st.text_input("본인 이름을 입력하세요 (예: 홍길동)")
         
         if st.button("출석 확인"):
-            # 입력값 빈칸 검사 (양쪽 공백 제거)
             name = name.strip() 
 
             if grade == "선택" or not name:
@@ -115,11 +143,10 @@ if mode == "admin":
                     existing_df = conn.read(ttl="0s")
                     today = datetime.date.today().isoformat()
                     
-                    # 시트가 완전히 비어있을 때를 대비해 빈 데이터프레임 구조 생성
                     if existing_df.empty:
                         existing_df = pd.DataFrame(columns=['grade', 'name', 'date', 'timestamp', 'fp'])
                     
-                    # 중복 체크 로직 (학년+이름이 같거나, 기기 지문이 같은 경우)
+                    # 중복 체크 
                     is_name_duplicated = not existing_df[(existing_df['name'] == name) & (existing_df['grade'] == grade) & (existing_df['date'] == today)].empty
                     is_fp_duplicated = not existing_df[(existing_df['fp'] == fp_id) & (existing_df['date'] == today)].empty
                     
@@ -128,7 +155,7 @@ if mode == "admin":
                     elif is_fp_duplicated:
                         st.error("이 기기로는 오늘 이미 다른 분이 출석했습니다 (1인 1기기).")
                     else:
-                        # 새 데이터 추가 (grade 항목 추가됨)
+                        # 새 데이터 추가 
                         new_data = pd.DataFrame([{
                             "grade": grade,
                             "name": name,
@@ -143,4 +170,3 @@ if mode == "admin":
                         st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
-
