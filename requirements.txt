@@ -1,8 +1,6 @@
 streamlit
-st-gsheets-connection
+pandas
 qrcode
 pillow
-streamlit-autorefresh
+supabase
 streamlit-js-eval
-pandas
-pyairtable
