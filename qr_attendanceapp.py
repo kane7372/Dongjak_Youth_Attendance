@@ -20,14 +20,12 @@ SECRET_KEY = "attendance_master_key" # QR 토큰용
 
 # --- 함수 정의 (🌟 3시간 단위 고정 QR) ---
 def get_token():
-    # 3시간 = 10800초. 10800초마다 interval 값이 1씩 증가하여 QR이 바뀜
     interval = int(time.time()) // 10800
     return hashlib.sha256(f"{interval}{SECRET_KEY}".encode()).hexdigest()[:8]
 
 def is_valid_token(user_token):
     interval = int(time.time()) // 10800
     token_now = hashlib.sha256(f"{interval}{SECRET_KEY}".encode()).hexdigest()[:8]
-    # 스캔하는 순간 3시간 경계가 넘어가서 튕기는 것을 방지 (직전 3시간 토큰도 허용)
     token_prev = hashlib.sha256(f"{interval - 1}{SECRET_KEY}".encode()).hexdigest()[:8]
     return user_token in [token_now, token_prev]
 
@@ -41,13 +39,11 @@ if mode == "admin":
     
     col1, col2 = st.columns([1, 1.5])
     
-    # [왼쪽] 3시간 고정 QR 코드 출력
     with col1:
         st.subheader("현재 출석 QR")
         token = get_token()
         qr_url = f"{base_url}/?token={token}"
         
-        # QR 생성 및 화면 출력
         qr_img = qrcode.make(qr_url)
         buf = BytesIO()
         qr_img.save(buf, format="PNG")
@@ -57,7 +53,6 @@ if mode == "admin":
         st.write("접속 주소:")
         st.code(qr_url)
 
-    # [오른쪽] 출결 데이터 (비밀번호 보호)
     with col2:
         st.subheader("📊 출석 데이터 관리")
         
@@ -73,7 +68,10 @@ if mode == "admin":
                     if not df.empty:
                         st.markdown("#### 🥇 누적 출석 랭킹 (Top 5)")
                         
-                        if 'grade' in df.columns:
+                        # 🌟 랭킹에 별명도 함께 표시되도록 수정
+                        if 'nickname' in df.columns and 'grade' in df.columns:
+                            df['display_name'] = df['grade'] + " " + df['name'] + " (" + df['nickname'] + ")"
+                        elif 'grade' in df.columns:
                             df['display_name'] = df['grade'] + " " + df['name']
                         else:
                             df['display_name'] = df['name']
@@ -124,21 +122,30 @@ else:
     if st.session_state.token_verified:
         st.success("✅ 유효한 접속입니다. 정보를 입력해주세요.") 
         
-        grade = st.selectbox("학년을 선택하세요", ["선택", "1학년", "2학년", "3학년", "4학년", "5학년", "6학년"]) 
-        name = st.text_input("본인 이름을 입력하세요 (예: 홍길동)")
+        # 🌟 중/고등학교 학년 옵션으로 변경
+        grade_options = ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년"]
+        grade = st.selectbox("학년을 선택하세요", grade_options) 
+        
+        name = st.text_input("이름을 입력하세요")
+        
+        # 🌟 별명 입력칸 추가
+        nickname = st.text_input("세례명을 입력하세요 (없다면 '없음' 입력)")
         
         if st.button("출석 확인"):
             name = name.strip() 
+            nickname = nickname.strip() # 공백 제거
 
-            if grade == "선택" or not name:
-                st.error("학년과 이름을 모두 입력해 주세요.")
+            # 🌟 학년, 이름, 별명 중 하나라도 비어있으면 에러
+            if grade == "선택" or not name or not nickname:
+                st.error("학년, 이름, 세례명을 모두 입력해 주세요.")
             else:
                 try:
                     existing_df = conn.read(ttl="0s")
                     today = datetime.date.today().isoformat()
                     
+                    # 🌟 빈 데이터프레임 구조에 nickname 열 추가
                     if existing_df.empty:
-                        existing_df = pd.DataFrame(columns=['grade', 'name', 'date', 'timestamp', 'fp'])
+                        existing_df = pd.DataFrame(columns=['grade', 'name', 'nickname', 'date', 'timestamp', 'fp'])
                     
                     is_name_duplicated = not existing_df[(existing_df['name'] == name) & (existing_df['grade'] == grade) & (existing_df['date'] == today)].empty
                     is_fp_duplicated = not existing_df[(existing_df['fp'] == fp_id) & (existing_df['date'] == today)].empty
@@ -148,9 +155,11 @@ else:
                     elif is_fp_duplicated:
                         st.error("이 기기로는 오늘 이미 다른 분이 출석했습니다 (1인 1기기).")
                     else:
+                        # 🌟 새 데이터에 nickname 추가
                         new_data = pd.DataFrame([{
                             "grade": grade,
                             "name": name,
+                            "nickname": nickname,
                             "date": today,
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "fp": fp_id
@@ -159,7 +168,7 @@ else:
                         conn.update(data=updated_df)
                         
                         st.balloons()
-                        st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
+                        # 완료 메시지에도 별명 표기
+                        st.success(f"🎊 {grade} {name}({nickname})님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
-
