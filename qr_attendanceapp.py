@@ -67,28 +67,41 @@ if mode == "admin":
         st.subheader(f"📊 출석 데이터 관리 ({TABLE_NAME})")
         admin_pw_input = st.text_input("데이터를 보려면 관리자 암호를 입력하세요.", type="password")
         
-        if admin_pw_input == ADMIN_PASSWORD:
-            st.success("✅ 관리자 인증 완료")
-            tab1, tab2, tab3 = st.tabs(["📊 요약 및 시각화", "📅 날짜별 조회", "✍️ 수동 출석 입력"])
-            
-            try:
-                # 🌟 TABLE_NAME 변수를 사용하여 데이터 불러오기
+try:
                 response = supabase.table(TABLE_NAME).select("*").execute()
                 df = pd.DataFrame(response.data)
                 
                 if not df.empty:
+                    # 1. 빈칸 채우기 및 띄어쓰기 찌꺼기 제거
                     for col in ['quarter', 'grade', 'name', 'nickname', 'date']:
                         if col not in df.columns:
                             df[col] = ""
-                    # .astype(str).str.strip() 을 붙여서 앞뒤의 눈에 안 보이는 띄어쓰기를 싹둑 잘라냅니다.
                     df['quarter'] = df['quarter'].fillna("").astype(str).str.strip()
                     df['grade'] = df['grade'].fillna("")
                     df['name'] = df['name'].fillna("")
                     df['nickname'] = df['nickname'].fillna("")
                     df['date'] = df['date'].fillna("")
                     
-                    df['display_name'] = df['grade'] + " " + df['name'] + " (" + df['nickname'] + ")"
-                    
+                    # 🌟 2. [마법의 코드] '둘 다'로 뭉쳐있는 데이터를 1쿼터/2쿼터 두 줄로 쪼개기
+                    if "1, 2쿼터 모두 (둘 다)" in df['quarter'].values:
+                        # '둘 다'라고 적힌 데이터들만 따로 뽑아냅니다.
+                        both_df = df[df['quarter'] == "1, 2쿼터 모두 (둘 다)"].copy()
+                        # 원래 표에서는 저 긴 글씨를 삭제합니다.
+                        df = df[df['quarter'] != "1, 2쿼터 모두 (둘 다)"]
+                        
+                        # 1쿼터용으로 이름표를 바꿔서 한 묶음 만듭니다.
+                        q1_df = both_df.copy()
+                        q1_df['quarter'] = "1쿼터"
+                        
+                        # 2쿼터용으로 이름표를 바꿔서 한 묶음 만듭니다.
+                        q2_df = both_df.copy()
+                        q2_df['quarter'] = "2쿼터"
+                        
+                        # 쪼개진 1쿼터, 2쿼터 묶음을 원래 표에 다시 합쳐버립니다!
+                        df = pd.concat([df, q1_df, q2_df], ignore_index=True)
+
+                    # 3. 화면에 보여줄 이름 만들기
+                    df['display_name'] = df['grade'] + " " + df['name'] + " (" + df['nickname'] + ")"                    
                     with tab1:
                         st.markdown("#### 📊 출석 요약")
                         
@@ -289,6 +302,7 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
 
