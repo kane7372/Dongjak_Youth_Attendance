@@ -169,12 +169,13 @@ if mode == "admin":
                 with st.form("manual_attendance_form"):
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        m_quarter = st.selectbox("쿼터", ["미사", "교리"])
-                        m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년","교사"])
+                        # 🌟 쿼터 선택지에 '1, 2쿼터 모두 (둘 다)' 추가
+                        m_quarter = st.selectbox("쿼터", ["1쿼터", "2쿼터", "1, 2쿼터 모두 (둘 다)"])
+                        m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년"])
                         m_date = st.date_input("출석 날짜 (기본값: 오늘)")
                     with col_b:
                         m_name = st.text_input("이름")
-                        m_nickname = st.text_input("세례명 (선택)", placeholder="입력하지 않으면 '수동입력' 저장")
+                        m_nickname = st.text_input("별명 (선택)", placeholder="입력하지 않으면 '수동입력' 저장")
                     
                     submit_btn = st.form_submit_button("✅ 수동 출석 등록하기")
                     
@@ -186,18 +187,25 @@ if mode == "admin":
                             st.error("학년과 이름은 반드시 입력해주세요.")
                         else:
                             try:
-                                # 🌟 TABLE_NAME 변수를 사용하여 데이터 넣기
-                                supabase.table(TABLE_NAME).insert({
-                                    "quarter": m_quarter,
-                                    "grade": m_grade,
-                                    "name": m_name,
-                                    "nickname": m_nickname,
-                                    "date": m_date.isoformat(),
-                                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                    "fp": "관리자_수동입력"
-                                }).execute()
+                                # 🌟 '둘 다'를 선택하면 1쿼터, 2쿼터를 각각 리스트에 담습니다.
+                                if m_quarter == "1, 2쿼터 모두 (둘 다)":
+                                    quarters_to_insert = ["1쿼터", "2쿼터"]
+                                else:
+                                    quarters_to_insert = [m_quarter]
                                 
-                                st.success(f"🎊 {m_grade} {m_name} 학생의 {m_quarter} 출석이 수동으로 정상 등록되었습니다! (새로고침 시 통계 반영)")
+                                # 리스트에 담긴 쿼터 수만큼 반복해서 수파베이스에 저장합니다. (둘 다 선택 시 2번 반복)
+                                for q in quarters_to_insert:
+                                    supabase.table(TABLE_NAME).insert({
+                                        "quarter": q,
+                                        "grade": m_grade,
+                                        "name": m_name,
+                                        "nickname": m_nickname,
+                                        "date": m_date.isoformat(),
+                                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        "fp": "관리자_수동입력"
+                                    }).execute()
+                                
+                                st.success(f"🎊 {m_grade} {m_name} 학생의 '{m_quarter}' 출석이 수동으로 정상 등록되었습니다! (새로고침 시 통계 반영)")
                             except Exception as e:
                                 st.error(f"수동 입력 중 문제가 발생했습니다: {e}")
                                 
@@ -277,5 +285,6 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
