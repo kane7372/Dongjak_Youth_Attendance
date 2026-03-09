@@ -66,7 +66,7 @@ if mode == "admin":
     with col2:
         st.subheader(f"📊 출석 데이터 관리 ({TABLE_NAME})")
         admin_pw_input = st.text_input("데이터를 보려면 관리자 암호를 입력하세요.", type="password")
-        
+        if admin_pw_input == ADMIN_PASSWORD:
             try:
                 response = supabase.table(TABLE_NAME).select("*").execute()
                 df = pd.DataFrame(response.data)
@@ -302,6 +302,7 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
 
