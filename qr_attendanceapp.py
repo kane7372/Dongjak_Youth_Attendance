@@ -11,8 +11,10 @@ from supabase import create_client, Client
 # --- 초기 설정 ---
 st.set_page_config(page_title="스마트 QR 출석 시스템", layout="wide")
 
+# ⚠️ [매우 중요] 설정 변수
 base_url = "https://dongjakyouthattendance-d57rqgsqjtumzwaftmyp3p.streamlit.app/"  # 본인의 Streamlit 앱 주소
 ADMIN_PASSWORD = "wndrhemdqn2026"                     # 관리자 비밀번호
+TABLE_NAME = "term_2026_1"                  # 🌟 이번 학기 수파베이스 테이블 이름! (학기마다 여기만 변경)
 
 # --- 수파베이스 연결 설정 ---
 try:
@@ -61,20 +63,19 @@ if mode == "admin":
         st.code(qr_url)
 
     with col2:
-        st.subheader("📊 출석 데이터 관리")
+        st.subheader(f"📊 출석 데이터 관리 ({TABLE_NAME})")
         admin_pw_input = st.text_input("데이터를 보려면 관리자 암호를 입력하세요.", type="password")
         
         if admin_pw_input == ADMIN_PASSWORD:
             st.success("✅ 관리자 인증 완료")
-            tab1, tab2 = st.tabs(["📊 요약 및 시각화", "📅 날짜별 출석부 조회"])
+            tab1, tab2, tab3 = st.tabs(["📊 요약 및 시각화", "📅 날짜별 조회", "✍️ 수동 출석 입력"])
             
             try:
-                # 🌟 수파베이스에서 모든 데이터 불러오기
-                response = supabase.table("attendance").select("*").execute()
+                # 🌟 TABLE_NAME 변수를 사용하여 데이터 불러오기
+                response = supabase.table(TABLE_NAME).select("*").execute()
                 df = pd.DataFrame(response.data)
                 
                 if not df.empty:
-                    # 빈 데이터 채우기
                     for col in ['quarter', 'grade', 'name', 'nickname', 'date']:
                         if col not in df.columns:
                             df[col] = ""
@@ -98,7 +99,7 @@ if mode == "admin":
                         
                     with tab2:
                         st.markdown("#### 🔎 특정 날짜 출석 확인")
-                        selected_date = st.date_input("조회할 날짜를 달력에서 선택하세요.")
+                        selected_date = st.date_input("조회할 날짜를 선택하세요.")
                         selected_date_str = selected_date.isoformat()
                         
                         filtered_df = df[df['date'] == selected_date_str]
@@ -113,11 +114,51 @@ if mode == "admin":
                                 st.dataframe(filtered_df, use_container_width=True)
                         else:
                             st.warning("선택한 날짜의 출석 기록이 없습니다.")
+                            
                 else:
-                    st.info("수파베이스에 아직 기록된 출석 데이터가 없습니다.")
+                    st.info(f"[{TABLE_NAME}] 테이블에 아직 기록된 출석 데이터가 없습니다.")
             except Exception as e:
                 st.error(f"데이터를 불러올 수 없습니다: {e}")
+                
+            with tab3:
+                st.markdown("#### ✍️ 관리자 수동 출석 기록")
+                st.info("스마트폰이 없는 학생이나 기기 오류가 발생한 학생을 직접 등록합니다.")
+                
+                with st.form("manual_attendance_form"):
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        m_quarter = st.selectbox("쿼터", ["미사", "교리"])
+                        m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년"])
+                        m_date = st.date_input("출석 날짜 (기본값: 오늘)")
+                    with col_b:
+                        m_name = st.text_input("이름")
+                        m_nickname = st.text_input("세례명 (선택)", placeholder="입력하지 않으면 '수동입력' 저장")
                     
+                    submit_btn = st.form_submit_button("✅ 수동 출석 등록하기")
+                    
+                    if submit_btn:
+                        m_name = m_name.strip()
+                        m_nickname = m_nickname.strip() if m_nickname.strip() else "수동입력"
+                        
+                        if m_grade == "선택" or not m_name:
+                            st.error("학년과 이름은 반드시 입력해주세요.")
+                        else:
+                            try:
+                                # 🌟 TABLE_NAME 변수를 사용하여 데이터 넣기
+                                supabase.table(TABLE_NAME).insert({
+                                    "quarter": m_quarter,
+                                    "grade": m_grade,
+                                    "name": m_name,
+                                    "nickname": m_nickname,
+                                    "date": m_date.isoformat(),
+                                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    "fp": "관리자_수동입력"
+                                }).execute()
+                                
+                                st.success(f"🎊 {m_grade} {m_name} 학생의 {m_quarter} 출석이 수동으로 정상 등록되었습니다! (새로고침 시 통계 반영)")
+                            except Exception as e:
+                                st.error(f"수동 입력 중 문제가 발생했습니다: {e}")
+                                
         elif admin_pw_input != "":
             st.error("❌ 비밀번호가 틀렸습니다.")
         else:
@@ -170,20 +211,17 @@ else:
                 try:
                     today = datetime.date.today().isoformat()
                     
-                    # 🌟 수파베이스의 초고속 필터링 기능 활용 (중복 체크)
-                    # 1. 이름+학년+날짜+쿼터가 모두 똑같은 데이터가 있는지 검색
-                    name_check = supabase.table("attendance").select("*").eq("name", name).eq("grade", grade).eq("date", today).eq("quarter", st.session_state.current_quarter).execute()
-                    
-                    # 2. 기기지문(fp)+날짜+쿼터가 모두 똑같은 데이터가 있는지 검색
-                    fp_check = supabase.table("attendance").select("*").eq("fp", str(fp_id)).eq("date", today).eq("quarter", st.session_state.current_quarter).execute()
+                    # 🌟 TABLE_NAME 변수를 사용하여 중복 검사
+                    name_check = supabase.table(TABLE_NAME).select("*").eq("name", name).eq("grade", grade).eq("date", today).eq("quarter", st.session_state.current_quarter).execute()
+                    fp_check = supabase.table(TABLE_NAME).select("*").eq("fp", str(fp_id)).eq("date", today).eq("quarter", st.session_state.current_quarter).execute()
                     
                     if len(name_check.data) > 0:
                         st.warning(f"'{grade} {name}'님은 오늘 {st.session_state.current_quarter}에 이미 출석하셨습니다.")
                     elif len(fp_check.data) > 0:
                         st.error(f"이 기기로는 오늘 {st.session_state.current_quarter}에 이미 다른 분이 출석했습니다 (1인 1기기).")
                     else:
-                        # 🌟 수파베이스에 데이터 한 줄 삽입(Insert)
-                        supabase.table("attendance").insert({
+                        # 🌟 TABLE_NAME 변수를 사용하여 데이터 저장
+                        supabase.table(TABLE_NAME).insert({
                             "quarter": st.session_state.current_quarter,
                             "grade": grade,
                             "name": name,
