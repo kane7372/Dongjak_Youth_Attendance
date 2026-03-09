@@ -43,7 +43,7 @@ mode = query_params.get("mode", "user")
 
 # [1. 관리자 모드]
 if mode == "admin":
-    st.title("📢 실시간 출석 현황 & QR")
+    st.title("📢 QR 출석체크")
     
     col1, col2 = st.columns([1, 1.5])
     
@@ -64,7 +64,7 @@ if mode == "admin":
         st.code(qr_url)
 
     with col2:
-        st.subheader(f"📊 출석 데이터 관리 ({TABLE_NAME})")
+        st.subheader(f"📊 출석 데이터 관리")
         admin_pw_input = st.text_input("데이터를 보려면 관리자 암호를 입력하세요.", type="password")
         if admin_pw_input == ADMIN_PASSWORD:
             try:
@@ -289,3 +289,4 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
