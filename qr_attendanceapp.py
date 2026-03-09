@@ -15,7 +15,7 @@ KST = datetime.timezone(datetime.timedelta(hours=9))
 # ⚠️ [매우 중요] 설정 변수
 base_url = "https://dongjakyouthattendance-d57rqgsqjtumzwaftmyp3p.streamlit.app/"  # 본인의 Streamlit 앱 주소
 ADMIN_PASSWORD = "wndrhemdqn2026"                     # 관리자 비밀번호
-TABLE_NAME = "term_2026_1"                  # 🌟 이번 학기 수파베이스 테이블 이름! (학기마다 여기만 변경)
+TABLE_NAME = "term_2026_1"                  # 🌟 이번 학기 수파베이스 테이블 이름!
 
 # --- 수파베이스 연결 설정 ---
 try:
@@ -52,7 +52,7 @@ if mode == "admin":
         current_quarter = st.radio("현재 진행 중인 출석을 선택하세요:", ["미사", "교리"], horizontal=True)
         
         token = get_token()
-        qr_url = f"{base_url}/?token={token}&quarter={current_quarter}"
+        qr_url = f"{base_url}?token={token}&quarter={current_quarter}"
         
         qr_img = qrcode.make(qr_url)
         buf = BytesIO()
@@ -82,31 +82,28 @@ if mode == "admin":
                     df['nickname'] = df['nickname'].fillna("")
                     df['date'] = df['date'].fillna("")
                     
-                    # 🌟 2. [마법의 코드] '둘 다'로 뭉쳐있는 데이터를 1쿼터/2쿼터 두 줄로 쪼개기
-                    if "1, 2쿼터 모두 (둘 다)" in df['quarter'].values:
-                        # '둘 다'라고 적힌 데이터들만 따로 뽑아냅니다.
-                        both_df = df[df['quarter'] == "1, 2쿼터 모두 (둘 다)"].copy()
-                        # 원래 표에서는 저 긴 글씨를 삭제합니다.
-                        df = df[df['quarter'] != "1, 2쿼터 모두 (둘 다)"]
+                    # 🌟 2. [마법의 코드 수정 완료] '미사, 교리 둘 다'로 뭉쳐있는 데이터를 미사/교리 두 줄로 쪼개기
+                    if "미사, 교리 둘 다" in df['quarter'].values:
+                        both_df = df[df['quarter'] == "미사, 교리 둘 다"].copy()
+                        df = df[df['quarter'] != "미사, 교리 둘 다"]
                         
-                        # 1쿼터용으로 이름표를 바꿔서 한 묶음 만듭니다.
                         q1_df = both_df.copy()
-                        q1_df['quarter'] = "1쿼터"
+                        q1_df['quarter'] = "미사"
                         
-                        # 2쿼터용으로 이름표를 바꿔서 한 묶음 만듭니다.
                         q2_df = both_df.copy()
-                        q2_df['quarter'] = "2쿼터"
+                        q2_df['quarter'] = "교리"
                         
-                        # 쪼개진 1쿼터, 2쿼터 묶음을 원래 표에 다시 합쳐버립니다!
                         df = pd.concat([df, q1_df, q2_df], ignore_index=True)
 
                     # 3. 화면에 보여줄 이름 만들기
-                    df['display_name'] = df['grade'] + " " + df['name'] + " (" + df['nickname'] + ")"                    
+                    df['display_name'] = df['grade'] + " " + df['name'] + " (" + df['nickname'] + ")"                  
+                    
+                    tab1, tab2, tab3 = st.tabs(["📊 요약 및 시각화", "📅 날짜별 조회", "✍️ 수동 출석 입력"])
+                    
                     with tab1:
                         st.markdown("#### 📊 출석 요약")
                         
                         # 1. 쿼터별 총 출석 건수 계산
-                        # == 대신 .str.contains()를 써서 공백 변수로부터 완벽하게 보호합니다.
                         q1_total = len(df[df['quarter'].str.contains('미사', na=False)])
                         q2_total = len(df[df['quarter'].str.contains('교리', na=False)])
                         total_attendance = len(df)
@@ -119,40 +116,31 @@ if mode == "admin":
                         
                         st.markdown("---")
                         
-                        st.markdown("#### 📈 일별 출석 추이 (쿼터 비교)")
+                        st.markdown("#### 📈 일별 출석 추이 (유형 비교)")
                         if not df.empty and 'date' in df.columns and 'quarter' in df.columns:
-                            # 날짜별, 쿼터별로 카운트하여 표(데이터프레임)로 변환
                             chart_data = df.groupby(['date', 'quarter']).size().unstack(fill_value=0)
-                            # 막대 차트로 출력 (자동으로 색상이 나뉘어 쌓입니다!)
                             st.bar_chart(chart_data)
                         
                         st.markdown("---")
                         
                         st.markdown("#### 🥇 누적 출석 랭킹 (Top 5)")
                         if not df.empty and 'display_name' in df.columns:
-                            # 학생별 1쿼터, 2쿼터 출석 횟수 피벗 테이블 생성
                             pivot_stats = df.groupby(['display_name', 'quarter']).size().unstack(fill_value=0)
                             
-                            # 혹시 아직 1쿼터나 2쿼터 기록이 아예 없을 때를 대비한 안전장치
+                            # 빈 쿼터 안전장치
                             for q in ['미사', '교리']:
                                 if q not in pivot_stats.columns:
                                     pivot_stats[q] = 0
                                     
-                            # 종합 점수 계산 (1쿼터 + 2쿼터)
                             pivot_stats['종합'] = pivot_stats['미사'] + pivot_stats['교리']
-                            
-                            # 종합 점수 기준으로 내림차순 정렬
                             pivot_stats = pivot_stats.sort_values(by='종합', ascending=False).reset_index()
                             pivot_stats.rename(columns={'display_name': '학생 정보'}, inplace=True)
                             
-                            # 보여줄 컬럼 순서 깔끔하게 정리
                             pivot_stats = pivot_stats[['학생 정보', '미사', '교리', '종합']]
                             
-                            # 상위 5명만 표로 보여주기
                             st.dataframe(pivot_stats.head(5), use_container_width=True)
                             
-                            # 접었다 펼칠 수 있는 공간에 전체 학생 기록 제공
-                            with st.expander("👀 모든 학생 전체 요약 보기 (클릭)"):
+                            with st.expander("👀 모든 인원 전체 요약 보기 (클릭)"):
                                 st.dataframe(pivot_stats, use_container_width=True)
                         
                     with tab2:
@@ -175,24 +163,26 @@ if mode == "admin":
                             
                 else:
                     st.info(f"[{TABLE_NAME}] 테이블에 아직 기록된 출석 데이터가 없습니다.")
+                    # 데이터가 없을 때도 수동 입력 탭은 보이도록 밖으로 뺌
+                    tab1, tab2, tab3 = st.tabs(["📊 요약 및 시각화", "📅 날짜별 조회", "✍️ 수동 출석 입력"])
+                    
             except Exception as e:
                 st.error(f"데이터를 불러올 수 없습니다: {e}")
+                tab1, tab2, tab3 = st.tabs(["📊 요약 및 시각화", "📅 날짜별 조회", "✍️ 수동 출석 입력"])
                 
             with tab3:
                 st.markdown("#### ✍️ 관리자 수동 출석 기록")
-                st.info("스마트폰이 없는 학생이나 기기 오류가 발생한 학생을 직접 등록합니다.")
+                st.info("스마트폰이 없는 분을 직접 등록합니다.")
                 
                 with st.form("manual_attendance_form"):
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        # 🌟 쿼터 선택지에 '1, 2쿼터 모두 (둘 다)' 추가
                         m_quarter = st.selectbox("출석 유형", ["미사", "교리", "미사, 교리 둘 다"])
                         m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년", "교사"])
-                        # (1) 달력 부분 변경
                         m_date = st.date_input("출석 날짜", value=datetime.datetime.now(KST).date())
                     with col_b:
                         m_name = st.text_input("이름")
-                        m_nickname = st.text_input("세례명")
+                        m_nickname = st.text_input("세례명 (선택)", placeholder="입력하지 않으면 '수동입력' 저장")
                     
                     submit_btn = st.form_submit_button("✅ 수동 출석 등록하기")
                     
@@ -204,13 +194,12 @@ if mode == "admin":
                             st.error("학년과 이름은 반드시 입력해주세요.")
                         else:
                             try:
-                                # 🌟 '둘 다'를 선택하면 1쿼터, 2쿼터를 각각 리스트에 담습니다.
-                                if m_quarter == "미사, 교리 모두 (둘 다)":
+                                # 🌟 '둘 다' 처리 로직 글자 수정
+                                if m_quarter == "미사, 교리 둘 다":
                                     quarters_to_insert = ["미사", "교리"]
                                 else:
                                     quarters_to_insert = [m_quarter]
                                 
-                                # 리스트에 담긴 쿼터 수만큼 반복해서 수파베이스에 저장합니다. (둘 다 선택 시 2번 반복)
                                 for q in quarters_to_insert:
                                     supabase.table(TABLE_NAME).insert({
                                         "quarter": q,
@@ -222,7 +211,7 @@ if mode == "admin":
                                         "fp": "관리자_수동입력"
                                     }).execute()
                                 
-                                st.success(f"🎊 {m_grade} {m_name} 학생의 '{m_quarter}' 출석이 수동으로 정상 등록되었습니다! (새로고침 시 통계 반영)")
+                                st.success(f"🎊 {m_grade} {m_name} 님의 '{m_quarter}' 출석이 수동으로 정상 등록되었습니다! (새로고침 시 통계 반영)")
                             except Exception as e:
                                 st.error(f"수동 입력 중 문제가 발생했습니다: {e}")
                                 
@@ -263,7 +252,7 @@ else:
         st.success(f"✅ 유효한 접속입니다. 현재 **[{st.session_state.current_quarter}]** 출석 중입니다.") 
         
         grade_options = ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년", "교사"]
-        grade = st.selectbox("학년을 선택하세요", grade_options) 
+        grade = st.selectbox("학년/소속을 선택하세요", grade_options) 
         
         name = st.text_input("이름을 입력하세요")
         nickname = st.text_input("세례명을 입력하세요 (없으면 '없음' 입력)")
@@ -278,7 +267,6 @@ else:
                 try:
                     today = datetime.datetime.now(KST).date().isoformat()
                     
-                    # 🌟 TABLE_NAME 변수를 사용하여 중복 검사
                     name_check = supabase.table(TABLE_NAME).select("*").eq("name", name).eq("grade", grade).eq("date", today).eq("quarter", st.session_state.current_quarter).execute()
                     fp_check = supabase.table(TABLE_NAME).select("*").eq("fp", str(fp_id)).eq("date", today).eq("quarter", st.session_state.current_quarter).execute()
                     
@@ -287,7 +275,6 @@ else:
                     elif len(fp_check.data) > 0:
                         st.error(f"이 기기로는 오늘 {st.session_state.current_quarter}에 이미 다른 분이 출석했습니다 (1인 1기기).")
                     else:
-                        # 🌟 TABLE_NAME 변수를 사용하여 데이터 저장
                         supabase.table(TABLE_NAME).insert({
                             "quarter": st.session_state.current_quarter,
                             "grade": grade,
@@ -302,15 +289,3 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
-
-
-
-
-
-
-
-
-
-
-
-
