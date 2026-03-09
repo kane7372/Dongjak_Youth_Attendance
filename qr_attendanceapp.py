@@ -17,7 +17,6 @@ base_url = "https://dongjakyouthattendance.streamlit.app"
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 SECRET_KEY = "attendance_master_key" # QR 토큰용
-STUDENT_LIST = ["홍길동", "김철수", "이영희", "박지민", "최유진"]
 
 # --- 함수 정의 ---
 # 1. (관리자용) 현재 15초 토큰 생성
@@ -144,3 +143,4 @@ if mode == "admin":
                         st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
