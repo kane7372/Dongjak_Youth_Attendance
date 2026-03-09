@@ -13,7 +13,7 @@ from streamlit_js_eval import streamlit_js_eval
 st.set_page_config(page_title="완성형 QR 출석 시스템", layout="wide")
 
 # ⚠️ [매우 중요] 아래 주소를 본인의 실제 Streamlit 앱 주소로 반드시 변경하세요!
-base_url = "https://abcdefg.streamlit.app" 
+base_url = "https://dongjakyouthattendance.streamlit.app" 
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 SECRET_KEY = "attendance_master_key" # QR 토큰용
@@ -170,3 +170,4 @@ else:
                         st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
