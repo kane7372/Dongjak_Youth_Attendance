@@ -80,7 +80,8 @@ if mode == "admin":
                     for col in ['quarter', 'grade', 'name', 'nickname', 'date']:
                         if col not in df.columns:
                             df[col] = ""
-                    df['quarter'] = df['quarter'].fillna("")
+                    # .astype(str).str.strip() 을 붙여서 앞뒤의 눈에 안 보이는 띄어쓰기를 싹둑 잘라냅니다.
+                    df['quarter'] = df['quarter'].fillna("").astype(str).str.strip()
                     df['grade'] = df['grade'].fillna("")
                     df['name'] = df['name'].fillna("")
                     df['nickname'] = df['nickname'].fillna("")
@@ -92,8 +93,9 @@ if mode == "admin":
                         st.markdown("#### 📊 출석 요약")
                         
                         # 1. 쿼터별 총 출석 건수 계산
-                        q1_total = len(df[df['quarter'] == '1쿼터'])
-                        q2_total = len(df[df['quarter'] == '2쿼터'])
+                        # == 대신 .str.contains()를 써서 공백 변수로부터 완벽하게 보호합니다.
+                        q1_total = len(df[df['quarter'].str.contains('1쿼터', na=False)])
+                        q2_total = len(df[df['quarter'].str.contains('2쿼터', na=False)])
                         total_attendance = len(df)
                         
                         # 상단에 깔끔하게 카드 형태로 숫자 표시
@@ -287,6 +289,7 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
 
