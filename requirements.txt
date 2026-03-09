@@ -1,4 +1,5 @@
 streamlit
+st-gsheets-connection
 qrcode
 pillow
 streamlit-autorefresh
