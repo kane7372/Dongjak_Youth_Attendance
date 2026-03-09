@@ -88,14 +88,56 @@ if mode == "admin":
                     df['display_name'] = df['grade'] + " " + df['name'] + " (" + df['nickname'] + ")"
                     
                     with tab1:
-                        st.markdown("#### 📈 일별 출석 추이")
-                        daily_counts = df['date'].value_counts().sort_index()
-                        st.bar_chart(daily_counts)
+                        st.markdown("#### 📊 출석 요약")
+                        
+                        # 1. 쿼터별 총 출석 건수 계산
+                        q1_total = len(df[df['quarter'] == '1쿼터'])
+                        q2_total = len(df[df['quarter'] == '2쿼터'])
+                        total_attendance = len(df)
+                        
+                        # 상단에 깔끔하게 카드 형태로 숫자 표시
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric(label="1쿼터 총 출석", value=f"{q1_total}건")
+                        m2.metric(label="2쿼터 총 출석", value=f"{q2_total}건")
+                        m3.metric(label="전체(종합) 출석", value=f"{total_attendance}건")
+                        
+                        st.markdown("---")
+                        
+                        st.markdown("#### 📈 일별 출석 추이 (쿼터 비교)")
+                        if not df.empty and 'date' in df.columns and 'quarter' in df.columns:
+                            # 날짜별, 쿼터별로 카운트하여 표(데이터프레임)로 변환
+                            chart_data = df.groupby(['date', 'quarter']).size().unstack(fill_value=0)
+                            # 막대 차트로 출력 (자동으로 색상이 나뉘어 쌓입니다!)
+                            st.bar_chart(chart_data)
+                        
+                        st.markdown("---")
                         
                         st.markdown("#### 🥇 누적 출석 랭킹 (Top 5)")
-                        stats = df['display_name'].value_counts().reset_index()
-                        stats.columns = ['학생 정보', '총 출석 횟수']
-                        st.table(stats.head(5))
+                        if not df.empty and 'display_name' in df.columns:
+                            # 학생별 1쿼터, 2쿼터 출석 횟수 피벗 테이블 생성
+                            pivot_stats = df.groupby(['display_name', 'quarter']).size().unstack(fill_value=0)
+                            
+                            # 혹시 아직 1쿼터나 2쿼터 기록이 아예 없을 때를 대비한 안전장치
+                            for q in ['1쿼터', '2쿼터']:
+                                if q not in pivot_stats.columns:
+                                    pivot_stats[q] = 0
+                                    
+                            # 종합 점수 계산 (1쿼터 + 2쿼터)
+                            pivot_stats['종합'] = pivot_stats['1쿼터'] + pivot_stats['2쿼터']
+                            
+                            # 종합 점수 기준으로 내림차순 정렬
+                            pivot_stats = pivot_stats.sort_values(by='종합', ascending=False).reset_index()
+                            pivot_stats.rename(columns={'display_name': '학생 정보'}, inplace=True)
+                            
+                            # 보여줄 컬럼 순서 깔끔하게 정리
+                            pivot_stats = pivot_stats[['학생 정보', '1쿼터', '2쿼터', '종합']]
+                            
+                            # 상위 5명만 표로 보여주기
+                            st.dataframe(pivot_stats.head(5), use_container_width=True)
+                            
+                            # 접었다 펼칠 수 있는 공간에 전체 학생 기록 제공
+                            with st.expander("👀 모든 학생 전체 요약 보기 (클릭)"):
+                                st.dataframe(pivot_stats, use_container_width=True)
                         
                     with tab2:
                         st.markdown("#### 🔎 특정 날짜 출석 확인")
@@ -235,3 +277,4 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
