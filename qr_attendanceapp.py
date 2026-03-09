@@ -94,8 +94,8 @@ if mode == "admin":
                         
                         # 1. 쿼터별 총 출석 건수 계산
                         # == 대신 .str.contains()를 써서 공백 변수로부터 완벽하게 보호합니다.
-                        q1_total = len(df[df['quarter'].str.contains('1쿼터', na=False)])
-                        q2_total = len(df[df['quarter'].str.contains('2쿼터', na=False)])
+                        q1_total = len(df[df['quarter'].str.contains('미사', na=False)])
+                        q2_total = len(df[df['quarter'].str.contains('교리', na=False)])
                         total_attendance = len(df)
                         
                         # 상단에 깔끔하게 카드 형태로 숫자 표시
@@ -174,7 +174,7 @@ if mode == "admin":
                     with col_a:
                         # 🌟 쿼터 선택지에 '1, 2쿼터 모두 (둘 다)' 추가
                         m_quarter = st.selectbox("출석 유형", ["미사", "교리", "미사, 교리 둘 다"])
-                        m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년","교사"])
+                        m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년", "교사"])
                         # (1) 달력 부분 변경
                         m_date = st.date_input("출석 날짜", value=datetime.datetime.now(KST).date())
                     with col_b:
@@ -249,7 +249,7 @@ else:
     if st.session_state.token_verified:
         st.success(f"✅ 유효한 접속입니다. 현재 **[{st.session_state.current_quarter}]** 출석 중입니다.") 
         
-        grade_options = ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년","교사"]
+        grade_options = ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년", "교사"]
         grade = st.selectbox("학년을 선택하세요", grade_options) 
         
         name = st.text_input("이름을 입력하세요")
@@ -289,6 +289,7 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
 
