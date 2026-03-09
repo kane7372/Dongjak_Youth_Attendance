@@ -4,3 +4,5 @@ qrcode
 pillow
 streamlit-autorefresh
 streamlit-js-eval
+pandas
+pyairtable
