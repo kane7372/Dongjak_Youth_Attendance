@@ -43,7 +43,7 @@ mode = query_params.get("mode", "user")
 
 # [1. 관리자 모드]
 if mode == "admin":
-    st.title("📢 QR 출석체크")
+    st.title("📢 동작동성당 중고등부 주일학교 출석체크")
     
     col1, col2 = st.columns([1, 1.5])
     
@@ -289,4 +289,5 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
