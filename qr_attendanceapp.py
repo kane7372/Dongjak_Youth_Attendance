@@ -53,16 +53,18 @@ if mode == "admin":
         st_autorefresh(interval=15000, key="qr_refresh")
         
         col1, col2 = st.columns([1, 1.5])
-        
         with col1:
             st.subheader("현재 출석 QR")
             token = get_token()
             qr_url = f"{base_url}/?token={token}"
             
-            qr = qrcode.make(qr_url)
-            buf = BytesIO()
-            qr.save(buf, format="PNG")
-            st.image(buf, width=300, caption=f"갱신 토큰: {token}")
+            # 🌟 복잡한 과정 생략! QR 코드를 만들어 바로 화면에 띄웁니다.
+            qr_img = qrcode.make(qr_url)
+            st.image(qr_img.get_image(), width=300, caption=f"갱신 토큰: {token}")
+            
+            # (확인용) QR 코드가 안 나올 때를 대비해 주소도 텍스트로 띄워줍니다.
+            st.write("접속 주소:")
+            st.code(qr_url)
 
         with col2:
             st.subheader("📊 출석 데이터 관리")
@@ -170,4 +172,5 @@ else:
                         st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
