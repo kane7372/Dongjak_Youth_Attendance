@@ -97,8 +97,8 @@ if mode == "admin":
                         
                         # 상단에 깔끔하게 카드 형태로 숫자 표시
                         m1, m2, m3 = st.columns(3)
-                        m1.metric(label="1쿼터 총 출석", value=f"{q1_total}건")
-                        m2.metric(label="2쿼터 총 출석", value=f"{q2_total}건")
+                        m1.metric(label="미사 총 출석", value=f"{q1_total}건")
+                        m2.metric(label="교리 총 출석", value=f"{q2_total}건")
                         m3.metric(label="전체(종합) 출석", value=f"{total_attendance}건")
                         
                         st.markdown("---")
@@ -118,19 +118,19 @@ if mode == "admin":
                             pivot_stats = df.groupby(['display_name', 'quarter']).size().unstack(fill_value=0)
                             
                             # 혹시 아직 1쿼터나 2쿼터 기록이 아예 없을 때를 대비한 안전장치
-                            for q in ['1쿼터', '2쿼터']:
+                            for q in ['미사', '교리']:
                                 if q not in pivot_stats.columns:
                                     pivot_stats[q] = 0
                                     
                             # 종합 점수 계산 (1쿼터 + 2쿼터)
-                            pivot_stats['종합'] = pivot_stats['1쿼터'] + pivot_stats['2쿼터']
+                            pivot_stats['종합'] = pivot_stats['미사'] + pivot_stats['교리']
                             
                             # 종합 점수 기준으로 내림차순 정렬
                             pivot_stats = pivot_stats.sort_values(by='종합', ascending=False).reset_index()
                             pivot_stats.rename(columns={'display_name': '학생 정보'}, inplace=True)
                             
                             # 보여줄 컬럼 순서 깔끔하게 정리
-                            pivot_stats = pivot_stats[['학생 정보', '1쿼터', '2쿼터', '종합']]
+                            pivot_stats = pivot_stats[['학생 정보', '미사', '교리', '종합']]
                             
                             # 상위 5명만 표로 보여주기
                             st.dataframe(pivot_stats.head(5), use_container_width=True)
@@ -170,12 +170,12 @@ if mode == "admin":
                     col_a, col_b = st.columns(2)
                     with col_a:
                         # 🌟 쿼터 선택지에 '1, 2쿼터 모두 (둘 다)' 추가
-                        m_quarter = st.selectbox("쿼터", ["1쿼터", "2쿼터", "1, 2쿼터 모두 (둘 다)"])
-                        m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년"])
+                        m_quarter = st.selectbox("출석 유형", ["미사", "교리", "미사,교리 둘 다"])
+                        m_grade = st.selectbox("학년", ["선택", "중학교 1학년", "중학교 2학년", "중학교 3학년", "고등학교 1학년", "고등학교 2학년", "고등학교 3학년","교사"])
                         m_date = st.date_input("출석 날짜 (기본값: 오늘)")
                     with col_b:
                         m_name = st.text_input("이름")
-                        m_nickname = st.text_input("별명 (선택)", placeholder="입력하지 않으면 '수동입력' 저장")
+                        m_nickname = st.text_input("세례명")
                     
                     submit_btn = st.form_submit_button("✅ 수동 출석 등록하기")
                     
@@ -188,8 +188,8 @@ if mode == "admin":
                         else:
                             try:
                                 # 🌟 '둘 다'를 선택하면 1쿼터, 2쿼터를 각각 리스트에 담습니다.
-                                if m_quarter == "1, 2쿼터 모두 (둘 다)":
-                                    quarters_to_insert = ["1쿼터", "2쿼터"]
+                                if m_quarter == "미사, 교리 모두 (둘 다)":
+                                    quarters_to_insert = ["미사", "교리"]
                                 else:
                                     quarters_to_insert = [m_quarter]
                                 
@@ -285,6 +285,7 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
+
 
 
 
