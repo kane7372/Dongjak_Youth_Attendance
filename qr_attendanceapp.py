@@ -42,7 +42,7 @@ if mode == "admin":
         with col1:
             st.subheader("현재 출석 QR")
             token = get_token()
-            base_url = "https://your-app.streamlit.app" # 실제 배포 주소로 변경
+            base_url = "https://dongjakyouthattendance-d57rqgsqjtumzwaftmyp3p.streamlit.app/" # 실제 배포 주소로 변경
             qr_url = f"{base_url}/?token={token}"
             
             qr = qrcode.make(qr_url)
@@ -112,4 +112,5 @@ else:
                     conn.update(data=updated_df) # 구글 시트로 전송
                     
                     st.balloons()
+
                     st.success(f"{name}님, 출석이 성공적으로 기록되었습니다!")
