@@ -66,72 +66,72 @@ if mode == "admin":
             st.image(buf, width=300, caption=f"갱신 토큰: {token}")
 
         with col2:
-            st.subheader("🏆 오늘 출석 랭킹 (Top 5)")
-            try:
-                df = conn.read(ttl="5s")
-                if not df.empty:
-                    stats = df['name'].value_counts().reset_index()
-                    stats.columns = ['이름', '총 출석 횟수']
-                    st.table(stats.head(5))
-                    st.subheader("전체 기록")
-                    st.dataframe(df.sort_values(by="timestamp", ascending=False))
-            except:
-                st.info("아직 데이터가 없거나 구글 시트가 비어있습니다.")
-
-# [2. 학생 모드]
-else:
-    st.title("📝 스마트 출석 체크")
-    
-    # 기기 지문 생성 (1인 1기기용)
-    fp_id = streamlit_js_eval(js_expressions="window.screen.width + '-' + navigator.userAgent", key="fp")
-    
-    if not fp_id:
-        st.info("기기 식별 중입니다. 잠시만 기다려주세요...")
-        st.stop()
-
-    url_token = query_params.get("token")
-    
-    # 🌟 [새로 추가된 핵심 로직] 세션을 이용해 새로고침 시 만료되는 현상 방지
-    if "token_verified" not in st.session_state:
-        st.session_state.token_verified = False
-
-    # 아직 검증 전이라면 토큰 검사
-    if not st.session_state.token_verified:
-        if not url_token:
-            st.error("카메라로 QR 코드를 스캔하여 접속해주세요.")
-            st.stop()
-        elif is_valid_token(url_token):
-            st.session_state.token_verified = True # 🟢 검증 통과 도장!
-            st.rerun() # 화면을 새로고침해서 아래 입력창을 보여줌
-        else:
-            st.error("❌ 만료된 QR 코드입니다. 화면의 새 QR을 스캔해 주세요.")
-            st.stop()
-
-    # 🟢 검증을 무사히 통과한 사용자에게만 출석 입력창 표시
+            st.subheader("📊 출석 데이터 관리")
+            
+            # 🌟 원할 때만 켜서 볼 수 있는 스위치 생성
+            show_stats = st.toggle("🏆 출석 랭킹 및 전체 기록 보기")
+            
+            if show_stats:
+                # 스위치를 켰을 때만 구글 시트에서 데이터를 불러옵니다.
+                try:
+                    df = conn.read(ttl="5s")
+                    if not df.empty:
+                        st.markdown("#### 🥇 누적 출석 랭킹 (Top 5)")
+                        
+                        # 이름과 학년이 같이 보이게 합쳐서 랭킹 계산
+                        if 'grade' in df.columns:
+                            df['display_name'] = df['grade'] + " " + df['name']
+                        else:
+                            df['display_name'] = df['name']
+                            
+                        stats = df['display_name'].value_counts().reset_index()
+                        stats.columns = ['학생 정보', '총 출석 횟수']
+                        
+                        st.table(stats.head(5))
+                        
+                        st.markdown("#### 📝 전체 출석 기록")
+                        st.dataframe(df.sort_values(by="timestamp", ascending=False), use_container_width=True)
+                except Exception as e:
+                    st.info("아직 데이터가 없거나 불러올 수 없습니다.")
+            else:
+                # 스위치가 꺼져있을 때 보여줄 안내문
+                st.info("👆 위 스위치를 켜면 실시간 랭킹과 전체 명단을 확인할 수 있습니다.")
+# 🟢 검증을 무사히 통과한 사용자에게만 출석 입력창 표시
     if st.session_state.token_verified:
-        st.success("✅ 유효한 접속입니다.")
-        name = st.selectbox("본인 이름을 선택하세요", ["선택하세요"] + STUDENT_LIST)
+        st.success("✅ 유효한 접속입니다. 정보를 입력해주세요.") 
+#[2. 학생 모드]        
+        # 🌟 리스트 선택 대신 '직접 입력'과 '드롭다운'으로 변경
+        grade = st.selectbox("학년을 선택하세요", ["선택", "1학년", "2학년", "3학년", "4학년", "5학년", "6학년"]) # 학교에 맞게 수정하세요!
+        name = st.text_input("본인 이름을 입력하세요 (예: 홍길동)")
         
         if st.button("출석 확인"):
-            if name == "선택하세요":
-                st.error("이름을 선택해 주세요.")
+            # 입력값 빈칸 검사 (양쪽 공백 제거)
+            name = name.strip() 
+
+            if grade == "선택" or not name:
+                st.error("학년과 이름을 모두 입력해 주세요.")
             else:
                 try:
                     # 구글 시트에서 데이터 가져오기
                     existing_df = conn.read(ttl="0s")
                     today = datetime.date.today().isoformat()
                     
-                    # 중복 체크 로직
-                    is_name_duplicated = not existing_df[(existing_df['name'] == name) & (existing_df['date'] == today)].empty
+                    # 시트가 완전히 비어있을 때를 대비해 빈 데이터프레임 구조 생성
+                    if existing_df.empty:
+                        existing_df = pd.DataFrame(columns=['grade', 'name', 'date', 'timestamp', 'fp'])
+                    
+                    # 중복 체크 로직 (학년+이름이 같거나, 기기 지문이 같은 경우)
+                    is_name_duplicated = not existing_df[(existing_df['name'] == name) & (existing_df['grade'] == grade) & (existing_df['date'] == today)].empty
                     is_fp_duplicated = not existing_df[(existing_df['fp'] == fp_id) & (existing_df['date'] == today)].empty
                     
                     if is_name_duplicated:
-                        st.warning(f"'{name}'님은 오늘 이미 출석하셨습니다.")
+                        st.warning(f"'{grade} {name}'님은 오늘 이미 출석하셨습니다.")
                     elif is_fp_duplicated:
                         st.error("이 기기로는 오늘 이미 다른 분이 출석했습니다 (1인 1기기).")
                     else:
-                        # 새 데이터 추가
+                        # 새 데이터 추가 (grade 항목 추가됨)
                         new_data = pd.DataFrame([{
+                            "grade": grade,
                             "name": name,
                             "date": today,
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -141,6 +141,6 @@ else:
                         conn.update(data=updated_df)
                         
                         st.balloons()
-                        st.success(f"🎊 {name}님, 출석이 성공적으로 기록되었습니다!")
+                        st.success(f"🎊 {grade} {name}님, 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
-                    st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요.")
+                    st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
