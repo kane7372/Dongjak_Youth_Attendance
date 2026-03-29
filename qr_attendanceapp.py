@@ -43,7 +43,7 @@ mode = query_params.get("mode", "user")
 
 # [1. 관리자 모드]
 if mode == "admin":
-    st.title("📢 동작동성당 중고등부 주일학교 출석체크")
+    st.title("📢 실시간 출석 현황 & QR")
     
     col1, col2 = st.columns([1, 1.5])
     
@@ -64,7 +64,7 @@ if mode == "admin":
         st.code(qr_url)
 
     with col2:
-        st.subheader(f"📊 출석 데이터 관리")
+        st.subheader(f"📊 출석 데이터 관리 ({TABLE_NAME})")
         admin_pw_input = st.text_input("데이터를 보려면 관리자 암호를 입력하세요.", type="password")
         if admin_pw_input == ADMIN_PASSWORD:
             try:
@@ -82,7 +82,7 @@ if mode == "admin":
                     df['nickname'] = df['nickname'].fillna("")
                     df['date'] = df['date'].fillna("")
                     
-                    # 🌟 2. [마법의 코드 수정 완료] '미사, 교리 둘 다'로 뭉쳐있는 데이터를 미사/교리 두 줄로 쪼개기
+                    # 2. '미사, 교리 둘 다' 데이터 쪼개기
                     if "미사, 교리 둘 다" in df['quarter'].values:
                         both_df = df[df['quarter'] == "미사, 교리 둘 다"].copy()
                         df = df[df['quarter'] != "미사, 교리 둘 다"]
@@ -163,7 +163,6 @@ if mode == "admin":
                             
                 else:
                     st.info(f"[{TABLE_NAME}] 테이블에 아직 기록된 출석 데이터가 없습니다.")
-                    # 데이터가 없을 때도 수동 입력 탭은 보이도록 밖으로 뺌
                     tab1, tab2, tab3 = st.tabs(["📊 요약 및 시각화", "📅 날짜별 조회", "✍️ 수동 출석 입력"])
                     
             except Exception as e:
@@ -194,7 +193,6 @@ if mode == "admin":
                             st.error("학년과 이름은 반드시 입력해주세요.")
                         else:
                             try:
-                                # 🌟 '둘 다' 처리 로직 글자 수정
                                 if m_quarter == "미사, 교리 둘 다":
                                     quarters_to_insert = ["미사", "교리"]
                                 else:
@@ -224,10 +222,22 @@ if mode == "admin":
 else:
     st.title("📝 스마트 출석 체크")
     
-    fp_id = streamlit_js_eval(js_expressions="window.screen.width + '-' + navigator.userAgent", key="fp")
+    # 🌟 [마법의 코드] 브라우저(Local Storage)에 고유 투명 도장 생성/읽기
+    js_code = """
+    (function() {
+        var uid = window.localStorage.getItem('attendance_device_uid');
+        if (!uid) {
+            uid = Date.now().toString(36) + Math.random().toString(36).substring(2);
+            window.localStorage.setItem('attendance_device_uid', uid);
+        }
+        return uid;
+    })()
+    """
+    
+    fp_id = streamlit_js_eval(js_expressions=js_code, key="get_uid")
     
     if not fp_id:
-        st.info("기기 식별 중입니다. 잠시만 기다려주세요...")
+        st.info("기기 보안 확인 중입니다. 잠시만 기다려주세요...")
         st.stop()
 
     url_token = query_params.get("token")
@@ -289,5 +299,3 @@ else:
                         st.success(f"🎊 {grade} {name}({nickname})님, {st.session_state.current_quarter} 출석이 성공적으로 기록되었습니다!")
                 except Exception as e:
                     st.error(f"데이터 저장 중 문제가 발생했습니다. 관리자에게 문의하세요. ({e})")
-
-
